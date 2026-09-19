@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Music Bot Panel</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#0a0a0a;--bg2:#111;--border:#2a2a2a;--text:#f5f5f5;--muted:#888;--red:#f87171;--ok:#34d399}
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh}
+    .wrap{max-width:820px;margin:0 auto;padding:24px 14px 50px}
+    h1{font-family:'Space Grotesk',sans-serif;font-size:1.35rem}
+    .sub{color:var(--muted);font-size:.88rem;margin:4px 0 20px}
+    .card{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:18px;margin-bottom:12px}
+    label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:6px}
+    input,select{width:100%;padding:11px 12px;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.9rem;font-family:inherit;outline:none;margin-bottom:10px}
+    input:focus,select:focus{border-color:#555}
+    .btns{display:flex;gap:8px;flex-wrap:wrap}
+    .btn{padding:10px 14px;border-radius:10px;font-weight:650;font-size:.85rem;border:none;cursor:pointer;font-family:inherit;transition:.15s}
+    .btn-w{background:#fff;color:#000}.btn-g{background:transparent;border:1px solid var(--border);color:var(--text)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}
+    .btn-sm{padding:8px 12px;font-size:.78rem}
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--border);font-size:.75rem;color:var(--muted);margin-bottom:12px}
+    .badge.on{color:#fff;border-color:#555}.dot{width:7px;height:7px;border-radius:50%;background:#555}.badge.on .dot{background:#fff}
+    .bot{display:none;gap:12px;align-items:center;padding:10px;background:#0a0a0a;border:1px solid var(--border);border-radius:10px;margin-bottom:12px}
+    .bot.show{display:flex}.bot img{width:44px;height:44px;border-radius:50%}
+    .ch-list{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto}
+    .ch-item{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;border:1px solid var(--border);background:#0a0a0a;cursor:pointer;transition:.15s}
+    .ch-item:hover,.ch-item.on{border-color:#fff;background:#151515}
+    .ch-item .n{font-weight:600;font-size:.9rem}
+    .ch-item .m{font-size:.75rem;color:var(--muted)}
+    .now{font-size:.9rem;margin-bottom:8px}
+    .now strong{color:#fff}
+    .queue{font-size:.8rem;color:var(--muted);max-height:120px;overflow-y:auto;font-family:'JetBrains Mono',monospace}
+    .logs{background:#0a0a0a;border:1px solid var(--border);border-radius:10px;min-height:140px;max-height:220px;overflow-y:auto;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.74rem}
+    .log{margin-bottom:2px}.log.err{color:var(--red)}.log.ok{color:#ddd}.log.sys{color:#999}
+    .err{color:var(--red);font-size:.85rem;display:none;margin-top:8px}
+    .note{font-size:.8rem;color:var(--muted);line-height:1.45;margin-top:10px}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:600px){.row2{grid-template-columns:1fr}}
+    h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Music Bot Panel</h1>
+    <p class="sub">Dán token · chọn kênh thoại · dán link / tải file audio → phát nhạc</p>
+
+    <div class="card">
+      <span class="badge" id="badge"><span class="dot"></span> Offline</span>
+      <div class="bot" id="botCard">
+        <img id="av" alt=""/>
+        <div>
+          <div id="tag" style="font-weight:600"></div>
+          <div id="meta" style="font-size:.8rem;color:var(--muted)"></div>
+        </div>
+      </div>
+      <label>Bot Token</label>
+      <input type="password" id="token" placeholder="Token bot Discord..." autocomplete="off"/>
+      <div class="btns">
+        <button class="btn btn-w" id="start" type="button">▶ Start bot</button>
+        <button class="btn btn-g" id="stop" type="button" disabled>■ Stop</button>
+      </div>
+      <p class="err" id="err"></p>
+      <p class="note">Bật Intent: Guilds, Voice States, Message Content. Mời bot với quyền Connect + Speak. Máy cần <b style="color:#ccc">FFmpeg</b>.</p>
+    </div>
+
+    <div class="card">
+      <h3>1. Chọn server & kênh thoại</h3>
+      <div class="row2">
+        <div>
+          <label>Server</label>
+          <select id="guild"><option value="">— Start bot trước —</option></select>
+        </div>
+        <div>
+          <label>Đã chọn kênh</label>
+          <input type="text" id="selCh" readonly placeholder="Chưa chọn"/>
+        </div>
+      </div>
+      <label>Menu kênh thoại (bấm để chọn)</label>
+      <div class="ch-list" id="chList">
+        <div style="color:var(--muted);font-size:.85rem;padding:8px">Chọn server để hiện danh sách kênh…</div>
+      </div>
+      <div class="btns" style="margin-top:10px">
+        <button class="btn btn-w btn-sm" id="btnJoin" type="button" disabled>🔊 Join kênh</button>
+        <button class="btn btn-g btn-sm" id="btnLeave" type="button" disabled>Leave</button>
+        <button class="btn btn-g btn-sm" id="btnRefresh" type="button">↻ Làm mới</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2. Phát nhạc</h3>
+      <label>Link YouTube / URL audio / tên bài</label>
+      <input type="text" id="query" placeholder="https://youtube.com/watch?v=... hoặc tên bài"/>
+      <label>Hoặc tải file (mp3, wav, ogg, m4a…)</label>
+      <input type="file" id="file" accept="audio/*,.mp3,.wav,.ogg,.m4a,.flac"/>
+      <div class="btns">
+        <button class="btn btn-w" id="btnPlay" type="button">▶ Play link</button>
+        <button class="btn btn-w" id="btnFile" type="button">▶ Play file</button>
+        <button class="btn btn-g btn-sm" id="btnPause" type="button">Pause</button>
+        <button class="btn btn-g btn-sm" id="btnResume" type="button">Resume</button>
+        <button class="btn btn-g btn-sm" id="btnSkip" type="button">Skip</button>
+        <button class="btn btn-g btn-sm" id="btnStopM" type="button">Stop</button>
+        <button class="btn btn-g btn-sm" id="btnLoop" type="button">Loop</button>
+      </div>
+      <div style="margin-top:14px">
+        <div class="now" id="now">▶ Chưa phát</div>
+        <div class="queue" id="queue"></div>
+      </div>
+      <p class="note">Trong Discord cũng dùng: <code>!join</code> <code>!play</code> <code>!skip</code> <code>!stop</code> <code>!leave</code> <code>!queue</code></p>
+    </div>
+
+    <div class="card">
+      <h3>Console</h3>
+      <div class="logs" id="logs"></div>
+    </div>
+  </div>
+  <script>
+    let selected = { guildId: null, channelId: null, channelName: '' };
+    let loopOn = false;
+
+    const logsEl = document.getElementById('logs');
+    function addLog(e) {
+      const d = document.createElement('div');
+      d.className = 'log ' + (e.type || 'sys');
+      d.textContent = '[' + new Date(e.time || Date.now()).toLocaleTimeString('vi-VN') + '] ' + e.text;
+      logsEl.appendChild(d);
+      logsEl.scrollTop = 99999;
+    }
+    function toastErr(m) {
+      err.textContent = m;
+      err.style.display = m ? 'block' : 'none';
+    }
+
+    function setStatus(running, bot, player) {
+      const b = document.getElementById('badge');
+      if (running) {
+        b.className = 'badge on';
+        b.innerHTML = '<span class="dot"></span> Online';
+        start.disabled = true; stop.disabled = false;
+      } else {
+        b.className = 'badge';
+        b.innerHTML = '<span class="dot"></span> Offline';
+        start.disabled = false; stop.disabled = true;
+      }
+      const card = document.getElementById('botCard');
+      if (bot) {
+        card.classList.add('show');
+        av.src = bot.avatar || '';
+        tag.textContent = bot.tag;
+        meta.textContent = bot.guilds + ' server(s)';
+      } else card.classList.remove('show');
+
+      if (player) {
+        now.innerHTML = player.current
+          ? '▶ <strong>' + player.current.title + '</strong>' + (player.paused ? ' (paused)' : '')
+          : '▶ Chưa phát';
+        queue.innerHTML = (player.queue || []).map((q, i) => (i + 1) + '. ' + q.title).join('<br>') || '';
+        btnLeave.disabled = !player.joined;
+      }
+    }
+
+    async function refresh() {
+      try {
+        const r = await fetch('/api/status');
+        const d = await r.json();
+        setStatus(d.running, d.bot, d.player);
+        if (d.running) {
+          btnJoin.disabled = !selected.channelId;
+        }
+      } catch {}
+    }
+
+    async function loadGuilds() {
+      try {
+        const r = await fetch('/api/guilds');
+        if (!r.ok) return;
+        const list = await r.json();
+        guild.innerHTML = '<option value="">— Chọn server —</option>' +
+          list.map(g => '<option value="' + g.id + '">' + g.name + '</option>').join('');
+      } catch {}
+    }
+
+    async function loadChannels(gid) {
+      chList.innerHTML = '<div style="color:var(--muted);font-size:.85rem;padding:8px">Đang tải…</div>';
+      selected.channelId = null;
+      selCh.value = '';
+      btnJoin.disabled = true;
+      try {
+        const r = await fetch('/api/guilds/' + gid + '/channels');
+        const list = await r.json();
+        if (!list.length) {
+          chList.innerHTML = '<div style="color:var(--muted);padding:8px">Không có kênh thoại</div>';
+          return;
+        }
+        chList.innerHTML = list.map(c =>
+          '<div class="ch-item" data-id="' + c.id + '" data-name="' + c.name.replace(/"/g, '') + '">' +
+          '<div><div class="n">🔊 ' + c.name + '</div><div class="m">' + c.type + ' · ' + c.members + ' members</div></div></div>'
+        ).join('');
+        chList.querySelectorAll('.ch-item').forEach(el => {
+          el.onclick = () => {
+            chList.querySelectorAll('.ch-item').forEach(x => x.classList.remove('on'));
+            el.classList.add('on');
+            selected.guildId = gid;
+            selected.channelId = el.dataset.id;
+            selected.channelName = el.dataset.name;
+            selCh.value = el.dataset.name;
+            btnJoin.disabled = false;
+          };
+        });
+      } catch (e) {
+        chList.innerHTML = '<div style="color:var(--red);padding:8px">Lỗi tải kênh</div>';
+      }
+    }
+
+    try {
+      const es = new EventSource('/api/logs/stream');
+      es.onmessage = (ev) => { try { addLog(JSON.parse(ev.data)); } catch {} refresh(); };
+    } catch {}
+
+    start.onclick = async () => {
+      toastErr('');
+      const t = token.value.trim();
+      if (!t) return toastErr('Nhập token');
+      start.disabled = true;
+      try {
+        const r = await fetch('/api/start', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token: t })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Lỗi');
+        setTimeout(async () => { await refresh(); await loadGuilds(); }, 1200);
+      } catch (e) {
+        toastErr(e.message);
+        start.disabled = false;
+      }
+    };
+
+    stop.onclick = async () => {
+      await fetch('/api/stop', { method: 'POST' });
+      setStatus(false, null, null);
+      guild.innerHTML = '<option value="">— Start bot trước —</option>';
+      chList.innerHTML = '';
+    };
+
+    guild.onchange = () => {
+      if (guild.value) loadChannels(guild.value);
+    };
+
+    btnRefresh.onclick = async () => {
+      await loadGuilds();
+      if (guild.value) loadChannels(guild.value);
+      refresh();
+    };
+
+    btnJoin.onclick = async () => {
+      try {
+        const r = await fetch('/api/join', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ guildId: selected.guildId, channelId: selected.channelId })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        refresh();
+      } catch (e) { toastErr(e.message); }
+    };
+
+    btnLeave.onclick = async () => {
+      await fetch('/api/leave', { method: 'POST' });
+      refresh();
+    };
+
+    btnPlay.onclick = async () => {
+      toastErr('');
+      try {
+        const r = await fetch('/api/play', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: query.value.trim() })
+        });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        refresh();
+      } catch (e) { toastErr(e.message); }
+    };
+
+    btnFile.onclick = async () => {
+      toastErr('');
+      const f = file.files[0];
+      if (!f) return toastErr('Chọn file audio');
+      const fd = new FormData();
+      fd.append('file', f);
+      try {
+        const r = await fetch('/api/play-file', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error);
+        refresh();
+      } catch (e) { toastErr(e.message); }
+    };
+
+    btnSkip.onclick = () => fetch('/api/skip', { method: 'POST' }).then(refresh);
+    btnStopM.onclick = () => fetch('/api/stop-music', { method: 'POST' }).then(refresh);
+    btnPause.onclick = () => fetch('/api/pause', { method: 'POST' }).then(refresh);
+    btnResume.onclick = () => fetch('/api/resume', { method: 'POST' }).then(refresh);
+    btnLoop.onclick = async () => {
+      loopOn = !loopOn;
+      await fetch('/api/loop', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ on: loopOn })
+      });
+      btnLoop.textContent = loopOn ? 'Loop ON' : 'Loop';
+      refresh();
+    };
+
+    query.addEventListener('keydown', e => { if (e.key === 'Enter') btnPlay.click(); });
+    refresh();
+    setInterval(refresh, 4000);
+  </script>
+</body>
+</html>
